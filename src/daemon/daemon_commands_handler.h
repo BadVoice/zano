@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <fstream>
+
 #include <boost/lexical_cast.hpp>
 #include <boost/bind/placeholders.hpp>
 
@@ -81,6 +83,7 @@ public:
     m_cmd_binder.set_handler("debug_remote_node_mode", boost::bind(&daemon_commands_handler::debug_remote_node_mode, this, ph::_1), "<ip-address> - If node got connected put node into 'debug mode' i.e. no sync process of other communication except ping responses, maintenance secrete key will be requested"); 
     m_cmd_binder.set_handler("full_db_cache_warmup", boost::bind(&daemon_commands_handler::full_db_cache_warmup, this, ph::_1), "(Experimental) Perform full DB loading to RAM cache(make sense only with big numbers passed to --db-cache-l2 option)");
     m_cmd_binder.set_handler("print_cache_state", boost::bind(&daemon_commands_handler::print_cache_state, this, ph::_1), "Print db l2 cache state");
+    m_cmd_binder.set_handler("scan_pos_coin_age", boost::bind(&daemon_commands_handler::scan_pos_coin_age, this, ph::_1), "Scan PoS coin age distribution and save results to a CSV file");
 #ifdef _DEBUG
     m_cmd_binder.set_handler("debug_set_time_adj", boost::bind(&daemon_commands_handler::debug_set_time_adj, this, ph::_1), "DEBUG: set core time adjustment");
 #endif
@@ -910,6 +913,37 @@ private:
   bool print_pool_sh(const std::vector<std::string>& args)
   {
     LOG_PRINT_L0("Pool state: " << ENDL << m_srv.get_payload_object().get_core().print_pool(true));
+    return true;
+  }
+  //--------------------------------------------------------------------------------
+  bool scan_pos_coin_age(const std::vector<std::string>& args)
+  {
+    constexpr char CSV_FILENAME[] = "coin_age_histogram.csv";
+
+    LOG_PRINT_L0("Starting PoS coin age scan...");
+
+    std::map<uint64_t, uint64_t> confirmations_distribution;
+    m_srv.get_payload_object().get_core().get_blockchain_storage().scan_pos_coin_age_distribution(confirmations_distribution);
+
+    CHECK_AND_ASSERT_MES(!confirmations_distribution.empty(), false, "No PoS coin age data found");
+
+    LOG_PRINT_L0("Coin age histogram (confirmations: frequency):");
+    for (const auto& [confirmations, count] : confirmations_distribution)
+    {
+      LOG_PRINT_L0(std::to_string(confirmations) + ": " + std::to_string(count));
+    }
+
+    std::ofstream csv_file(CSV_FILENAME);
+    CHECK_AND_ASSERT_MES(csv_file, false, "Failed to open " << CSV_FILENAME << " for writing");
+
+    csv_file << "Confirmations,Count\n";
+    for (const auto& [confirmations, count] : confirmations_distribution)
+    {
+      csv_file << confirmations << ',' << count << '\n';
+    }
+
+    LOG_PRINT_L0("Histogram successfully saved to " << CSV_FILENAME);
+
     return true;
   }
   //--------------------------------------------------------------------------------

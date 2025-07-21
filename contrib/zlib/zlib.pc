@@ -1,0 +1,13 @@
+prefix=C:/Program Files/Zano
+exec_prefix=C:/Program Files/Zano
+libdir=C:/Program Files/Zano/lib
+sharedlibdir=C:/Program Files/Zano/lib
+includedir=C:/Program Files/Zano/include
+
+Name: zlib
+Description: zlib compression library
+Version: 1.3.1
+
+Requires:
+Libs: -L${libdir} -L${sharedlibdir} -lz
+Cflags: -I${includedir}
