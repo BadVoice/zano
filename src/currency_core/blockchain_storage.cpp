@@ -8661,4 +8661,73 @@ bool blockchain_storage::validate_alt_block_txs(const block& b, const crypto::ha
   return true;
 }
 
+void blockchain_storage::scan_pos_coin_age_distribution(std::map<uint64_t, uint64_t>& confirmations_distribution)
+{
+  constexpr uint64_t zarcanum_epoch_start = 2555000;
+  constexpr uint64_t amount               = 0;
 
+  CRITICAL_REGION_LOCAL(m_read_lock);
+
+  const uint64_t top_height = m_db_blocks.size() > 0 ? m_db_blocks.size() - 1 : 0;
+
+  CHECK_AND_ASSERT_MES(top_height >= zarcanum_epoch_start, void(),
+                       "Blockchain height (" << top_height << ") is less than zarcanum epoch start (" << zarcanum_epoch_start << "). Cannot scan POS coin age.");
+
+  const uint64_t total_blocks = top_height - zarcanum_epoch_start + 1;
+  uint64_t processed_blocks   = 0;
+  uint64_t processed_outputs  = 0;
+
+  for (uint64_t height = zarcanum_epoch_start; height <= top_height; ++height)
+  {
+    const std::shared_ptr<const currency::block_extended_info>& block_entry_ptr = m_db_blocks[height];
+    if (!block_entry_ptr)
+      continue;
+
+    const currency::block& blk = block_entry_ptr->bl;
+
+    if (!is_pos_block(blk) ||
+       blk.miner_tx.vin.size() < 2 ||
+       blk.miner_tx.vin[1].type() != typeid(currency::txin_zc_input))
+    {
+      continue;
+    }
+
+    const currency::txin_zc_input& stake_input               = boost::get<currency::txin_zc_input>(blk.miner_tx.vin[1]);
+    const std::vector<currency::txout_ref_v> abs_key_offsets = relative_output_offsets_to_absolute(stake_input.key_offsets);
+
+    for (const currency::txout_ref_v& abs_offset : abs_key_offsets)
+    {
+      if (abs_offset.type() != typeid(uint64_t))
+        continue;
+
+      const uint64_t global_index = boost::get<uint64_t>(abs_offset);
+
+      const std::shared_ptr<const currency::global_output_entry> out_ptr = m_db_outputs.get_subitem(amount, global_index);
+      if (!out_ptr)
+        continue;
+
+      const std::shared_ptr<const currency::transaction_chain_entry> tx_ptr = m_db_transactions.find(out_ptr->tx_id);
+      if (!tx_ptr)
+        continue;
+
+      const uint64_t mint_block_height = tx_ptr->m_keeper_block_height;
+      if (mint_block_height > height)
+        continue;
+
+      const uint64_t confirmations = height - mint_block_height + 1;
+      ++confirmations_distribution[confirmations];
+      ++processed_outputs;
+    }
+
+    ++processed_blocks;
+    if (processed_blocks % 1000 == 0)
+    {
+      double progress = (static_cast<double>(processed_blocks) / total_blocks) * 100;
+      LOG_PRINT_L0("Scanned " << processed_blocks << " / " << total_blocks
+                              << " blocks (" << std::fixed << std::setprecision(2) << progress << "% done), outputs counted: " << processed_outputs);
+    }
+  }
+
+  LOG_PRINT_L0("Finished scanning POS coin age: total blocks processed: " << processed_blocks
+                                                                          << ", total outputs counted: " << processed_outputs);
+}
