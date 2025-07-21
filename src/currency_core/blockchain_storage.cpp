@@ -8680,39 +8680,34 @@ void blockchain_storage::scan_pos_coin_age_distribution(std::map<uint64_t, uint6
   for (uint64_t height = zarcanum_epoch_start; height <= top_height; ++height)
   {
     const std::shared_ptr<const currency::block_extended_info>& block_entry_ptr = m_db_blocks[height];
-    if (!block_entry_ptr)
-      continue;
+    CHECK_AND_ASSERT_MES(block_entry_ptr, void(), "No block entry found at height: " << height);
 
     const currency::block& blk = block_entry_ptr->bl;
 
-    if (!is_pos_block(blk) ||
-       blk.miner_tx.vin.size() < 2 ||
-       blk.miner_tx.vin[1].type() != typeid(currency::txin_zc_input))
-    {
+    if (!is_pos_block(blk))
       continue;
-    }
 
     const currency::txin_zc_input& stake_input               = boost::get<currency::txin_zc_input>(blk.miner_tx.vin[1]);
     const std::vector<currency::txout_ref_v> abs_key_offsets = relative_output_offsets_to_absolute(stake_input.key_offsets);
 
     for (const currency::txout_ref_v& abs_offset : abs_key_offsets)
     {
-      if (abs_offset.type() != typeid(uint64_t))
-        continue;
+      CHECK_AND_ASSERT_MES(abs_offset.type() == typeid(uint64_t), void(),
+                           "Unexpected txout_ref_v type, expected uint64_t at height " << height);
 
       const uint64_t global_index = boost::get<uint64_t>(abs_offset);
 
       const std::shared_ptr<const currency::global_output_entry> out_ptr = m_db_outputs.get_subitem(amount, global_index);
-      if (!out_ptr)
-        continue;
+      CHECK_AND_ASSERT_MES(out_ptr, void(),
+                           "Output not found for global index " << global_index << " at height " << height);
 
       const std::shared_ptr<const currency::transaction_chain_entry> tx_ptr = m_db_transactions.find(out_ptr->tx_id);
-      if (!tx_ptr)
-        continue;
+      CHECK_AND_ASSERT_MES(tx_ptr, void(),
+                           "Transaction not found for output tx_id " << out_ptr->tx_id << " at height " << height);
 
       const uint64_t mint_block_height = tx_ptr->m_keeper_block_height;
-      if (mint_block_height > height)
-        continue;
+      CHECK_AND_ASSERT_MES(mint_block_height <= height, void(),
+                           "Mint block height " << mint_block_height << " is greater than current block height " << height);
 
       const uint64_t confirmations = height - mint_block_height + 1;
       ++confirmations_distribution[confirmations];
