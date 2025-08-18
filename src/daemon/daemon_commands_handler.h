@@ -82,6 +82,9 @@ public:
     m_cmd_binder.set_handler("full_db_cache_warmup", boost::bind(&daemon_commands_handler::full_db_cache_warmup, this, ph::_1), "(Experimental) Perform full DB loading to RAM cache(make sense only with big numbers passed to --db-cache-l2 option)");
     m_cmd_binder.set_handler("print_cache_state", boost::bind(&daemon_commands_handler::print_cache_state, this, ph::_1), "Print db l2 cache state");
     m_cmd_binder.set_handler("reload_p2p_manual_config", boost::bind(&daemon_commands_handler::reload_p2p_manual_config, this, ph::_1), "Reload manual p2p config from '" P2P_MANUAL_CONFIG_FILENAME "'");
+    m_cmd_binder.set_handler("scan_pos_ring_unique_composition", boost::bind(&daemon_commands_handler::scan_pos_ring_unique_composition, this, ph::_1));
+    m_cmd_binder.set_handler("scan_outputs_distribution", boost::bind(&daemon_commands_handler::scan_outputs_distribution, this, ph::_1));
+    m_cmd_binder.set_handler("scan_pos_ring_composition", boost::bind(&daemon_commands_handler::scan_pos_ring_composition, this, ph::_1));
 #ifdef _DEBUG
     m_cmd_binder.set_handler("debug_set_time_adj", boost::bind(&daemon_commands_handler::debug_set_time_adj, this, ph::_1), "DEBUG: set core time adjustment");
 #endif
@@ -920,6 +923,21 @@ private:
     LOG_PRINT_L0("Pool state: " << ENDL << m_srv.get_payload_object().get_core().print_pool(true));
     return true;
   }
+  //--------------------------------------------------------------------------------
+  bool scan_pos_ring_unique_composition(const std::vector<std::string>& args) {
+    m_srv.get_payload_object().get_core().get_blockchain_storage().scan_pos_ring_unique_composition();
+    return true;
+  }
+  //--------------------------------------------------------------------------------
+  bool scan_outputs_distribution(const std::vector<std::string>& args) {
+    m_srv.get_payload_object().get_core().get_blockchain_storage().scan_outputs_distribution();
+    return true;
+  }
+  //--------------------------------------------------------------------------------
+   bool scan_pos_ring_composition(const std::vector<std::string>& args) {
+     m_srv.get_payload_object().get_core().get_blockchain_storage().scan_pos_ring_composition();
+     return true;
+   }
   //--------------------------------------------------------------------------------
 #ifdef CPU_MINING_ENABLED
   bool start_mining(const std::vector<std::string>& args)

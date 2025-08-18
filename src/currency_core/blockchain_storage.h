@@ -529,6 +529,9 @@ namespace currency
     void on_hardfork_activated(size_t hardfork_id);
     void print_db_l2_cache_state() const;
     std::string get_db_l2_cache_state_str() const;
+    void scan_pos_ring_unique_composition();
+    void scan_outputs_distribution();
+    void scan_pos_ring_composition();
 
   private:
 
