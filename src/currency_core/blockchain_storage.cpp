@@ -1647,22 +1647,22 @@ void blockchain_storage::scan_outputs_distribution() {
     bool auditble_output = false;
     //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     {
-    const tx_out_v& out_v = tx_ptr->tx.vout[out_ptr->out_no];
+      const tx_out_v& out_v = tx_ptr->tx.vout[out_ptr->out_no];
 
-    // do not use burned coins
-    if (is_out_burned(out_v)) 
-      continue;
+      // do not use burned coins
+      if (is_out_burned(out_v)) 
+        continue;
 
-    // check mix_attr
-    uint8_t mix_attr = CURRENCY_TO_KEY_OUT_RELAXED;
-    if (!get_mix_attr_from_tx_out_v(out_v, mix_attr)) 
-    {
-      LOG_ERROR("why no mixins?");
-      continue;
-    }
+      // check mix_attr
+      uint8_t mix_attr = CURRENCY_TO_KEY_OUT_RELAXED;
+      if (!get_mix_attr_from_tx_out_v(out_v, mix_attr)) 
+      {
+        LOG_ERROR("why no mixins?");
+        continue;
+      }
 
-    if (mix_attr == CURRENCY_TO_KEY_OUT_FORCED_NO_MIX)
-      auditble_output = true;
+      if (mix_attr == CURRENCY_TO_KEY_OUT_FORCED_NO_MIX)
+        auditble_output = true;
     }
     //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     {
@@ -1670,22 +1670,22 @@ void blockchain_storage::scan_outputs_distribution() {
       result_outs.amount = 0;
       added = add_out_to_get_random_outs(result_outs, 0, g_idx, 16, false, top_height - 10);
     }
-    if (added) 
+    if (added)
       ++added_count;
 
 
 
 
 
-    if (auditble_output) 
+    if (auditble_output)
     {
       ++pool_no_mixins;
-    } 
-    else 
+    }
+    else
     {
       if (is_pos_miner_tx(tx_ptr->tx)) {
         ++pool_cb;
-      } 
+      }
       else {
         ++pool_reg;
       }
