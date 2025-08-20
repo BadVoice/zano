@@ -1650,12 +1650,12 @@ void blockchain_storage::scan_outputs_distribution() {
       const tx_out_v& out_v = tx_ptr->tx.vout[out_ptr->out_no];
 
       // do not use burned coins
-      if (is_out_burned(out_v)) 
+      if (is_out_burned(out_v))
         continue;
 
       // check mix_attr
       uint8_t mix_attr = CURRENCY_TO_KEY_OUT_RELAXED;
-      if (!get_mix_attr_from_tx_out_v(out_v, mix_attr)) 
+      if (!get_mix_attr_from_tx_out_v(out_v, mix_attr))
       {
         LOG_ERROR("why no mixins?");
         continue;
