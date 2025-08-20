@@ -82,9 +82,10 @@ public:
     m_cmd_binder.set_handler("full_db_cache_warmup", boost::bind(&daemon_commands_handler::full_db_cache_warmup, this, ph::_1), "(Experimental) Perform full DB loading to RAM cache(make sense only with big numbers passed to --db-cache-l2 option)");
     m_cmd_binder.set_handler("print_cache_state", boost::bind(&daemon_commands_handler::print_cache_state, this, ph::_1), "Print db l2 cache state");
     m_cmd_binder.set_handler("reload_p2p_manual_config", boost::bind(&daemon_commands_handler::reload_p2p_manual_config, this, ph::_1), "Reload manual p2p config from '" P2P_MANUAL_CONFIG_FILENAME "'");
-    m_cmd_binder.set_handler("scan_pos_ring_unique_composition", boost::bind(&daemon_commands_handler::scan_pos_ring_unique_composition, this, ph::_1));
-    m_cmd_binder.set_handler("scan_outputs_distribution", boost::bind(&daemon_commands_handler::scan_outputs_distribution, this, ph::_1));
-    m_cmd_binder.set_handler("scan_pos_ring_composition", boost::bind(&daemon_commands_handler::scan_pos_ring_composition, this, ph::_1));
+    m_cmd_binder.set_handler("scan_pos_coin_age", boost::bind(&daemon_commands_handler::scan_pos_coin_age, this, ph::_1), "Scan pos coin age distribution to CSV format");
+    m_cmd_binder.set_handler("scan_outputs_distribution",  boost::bind(&daemon_commands_handler::scan_outputs_distribution, this, ph::_1));
+    m_cmd_binder.set_handler("scan_pos_ring_unique_composition",  boost::bind(&daemon_commands_handler::scan_pos_ring_unique_composition, this, ph::_1));
+    m_cmd_binder.set_handler("scan_pos_ring_composition",  boost::bind(&daemon_commands_handler::scan_pos_ring_composition, this, ph::_1));
 #ifdef _DEBUG
     m_cmd_binder.set_handler("debug_set_time_adj", boost::bind(&daemon_commands_handler::debug_set_time_adj, this, ph::_1), "DEBUG: set core time adjustment");
 #endif
@@ -921,6 +922,75 @@ private:
   bool print_pool_sh(const std::vector<std::string>& args)
   {
     LOG_PRINT_L0("Pool state: " << ENDL << m_srv.get_payload_object().get_core().print_pool(true));
+    return true;
+  }
+//--------------------------------------------------------------------------------
+  bool scan_pos_coin_age(const std::vector<std::string>& args)
+  {
+    constexpr char CSV_FILENAME[] = "coin_age_histogram.csv";
+
+    LOG_PRINT_L0("Starting PoS coin age scan...");
+
+    std::map<uint64_t, uint64_t> confirmations_distribution;
+    m_srv.get_payload_object().get_core().get_blockchain_storage().scan_pos_coin_age_distribution(confirmations_distribution);
+
+    CHECK_AND_ASSERT_MES(!confirmations_distribution.empty(), false, "No PoS coin age data found");
+
+    LOG_PRINT_L0("Coin age histogram (confirmations: frequency):");
+    for (const auto& [confirmations, count] : confirmations_distribution)
+    {
+      LOG_PRINT_L0(std::to_string(confirmations) + ": " + std::to_string(count));
+    }
+
+    std::ofstream csv_file(CSV_FILENAME);
+    CHECK_AND_ASSERT_MES(csv_file, false, "Failed to open " << CSV_FILENAME << " for writing");
+
+    csv_file << "Confirmations,Count\n";
+    for (const auto& [confirmations, count] : confirmations_distribution)
+    {
+      csv_file << confirmations << ',' << count << '\n';
+    }
+
+    LOG_PRINT_L0("Histogram successfully saved to " << CSV_FILENAME);
+
+    return true;
+  }
+  //--------------------------------------------------------------------------------
+  bool scan_outputs_distribution(const std::vector<std::string>& args)
+  {
+    m_srv.get_payload_object().get_core().get_blockchain_storage().scan_outputs_distribution();
+    return true;
+  }
+  //--------------------------------------------------------------------------------
+  bool scan_pos_ring_unique_composition(const std::vector<std::string>& args)
+  {
+    m_srv.get_payload_object().get_core().get_blockchain_storage().scan_pos_ring_unique_composition();
+    return true;
+  }
+  //--------------------------------------------------------------------------------
+  bool scan_pos_ring_composition(const std::vector<std::string>& args)
+  {
+    uint64_t start = 0;
+    uint64_t stop = 0;
+    if (args.size() > 0)
+    {
+      if (!epee::string_tools::get_xtype_from_string(start, args[0]))
+      {
+        std::cout << "unable to convert to number '" << args[0] << "'" << std::endl;
+        return true;
+      }
+
+      if (args.size() > 1)
+      {
+        if (!epee::string_tools::get_xtype_from_string(stop, args[1]))
+        {
+          std::cout << "unable to convert to number '" << args[1] << "'" << std::endl;
+          return true;
+        }
+      }
+    }
+
+    m_srv.get_payload_object().get_core().get_blockchain_storage().scan_pos_ring_composition(start, stop);
     return true;
   }
   //--------------------------------------------------------------------------------
